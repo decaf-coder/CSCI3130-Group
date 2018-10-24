@@ -14,6 +14,8 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
@@ -52,6 +54,9 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -105,36 +110,14 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
                 return false;
             }
         });
-        //**************************BT**************************************
-       /* dirBt=(Button)findViewById(R.id.dir_button);
 
-
-        dirBt.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (((EditText)findViewById(R.id.searchBar)).getText().toString().trim().length()>2)
-                {
-                    String val=((EditText)findViewById(R.id.searchBar)).getText().toString().trim();
-                    Intent i=new Intent( MainActivity.this,MapsActivityDir.class);
-                    i.putExtra("loc",val);
-                    startActivity(i);
-                }else
-                {
-
-                }
-            }
-        });
-        //**************************BT**************************************
-        */
-        //CHECK LOGIN
         firebaseAuth = FirebaseAuth.getInstance();
         if (firebaseAuth.getCurrentUser() == null) {
             finish();
             startActivity(new Intent(this, CredentialActivity.class));
         }
         FirebaseUser user = firebaseAuth.getCurrentUser();
-       // userName = findViewById(R.id.userEmail);
-       // userName.setText(user.getEmail());
+
         uid = user.getUid();
         firebaseDBInstance = FirebaseDatabase.getInstance();
 
@@ -150,8 +133,8 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
             mLocationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER,true);
             // Build the alert dialog
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Location Services Not Active");
-            builder.setMessage("Please enable Location Services and GPS");
+            builder.setTitle(R.string.mapsactivity_loaction_services_notactive);
+            builder.setMessage(R.string.mapsactivity_gps_location_not_active);
             builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialogInterface, int i) {
                     // Show location settings when the user acknowledges the alert dialog
@@ -171,8 +154,80 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        //COLOR THE
+        colorBG();
+    }
 
+    public void colorBG() {
+        final String[] colorString = {"FFFFFF"}; //default
+        ChildEventListener userListener = new ChildEventListener() {
 
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+                UserProfile thisUser = dataSnapshot.getValue(UserProfile.class);
+                if (thisUser != null) {
+                    colorString[0] = thisUser.getFavoriteColor();
+                    Log.d("Favorite COLOR:", colorString[0]);
+                }
+                View thisView = findViewById(R.id.drawer_layout);
+                int color;
+                try {
+                    color = Color.parseColor(String.valueOf(colorString[0]));
+                } catch (Exception e) {
+                    color = Color.parseColor(String.valueOf("#FFFFFF"));
+                }
+                thisView.setBackgroundColor(color);
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+//                View thisView = findViewById(R.id.mainViewForBG);
+//                View rootOfThisView = thisView.getRootView();
+//                UserProfile thisUser = dataSnapshot.getValue(UserProfile.class);
+//                if (thisUser != null) {
+//                    String colorString = thisUser.getFavoriteColor();
+//                    Log.d("Favorite COLOR:", colorString);
+//                    int color = Color.parseColor(String.valueOf(colorString));
+//                    rootOfThisView.setBackgroundColor(color);
+
+                UserProfile thisUser = dataSnapshot.getValue(UserProfile.class);
+                if (thisUser != null) {
+                    colorString[0] = thisUser.getFavoriteColor();
+                    Log.d("Favorite COLOR:", colorString[0]);
+                }
+                View thisView = findViewById(R.id.drawer_layout);
+                int color;
+                try {
+                    color = Color.parseColor(String.valueOf(colorString[0]));
+                } catch (Exception e) {
+                    color = Color.parseColor(String.valueOf("#FFFFFF"));
+                }
+                thisView.setBackgroundColor(color);
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        };
+        if (firebaseAuth.getCurrentUser() == null) {
+            finish();
+            startActivity(new Intent(this, CredentialActivity.class));
+        }
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        firebaseDBInstance = FirebaseDatabase.getInstance();
+        firebaseReference = firebaseDBInstance.getReference();
+        firebaseReference.child("users").child(user.getUid()).child("userprofile").addChildEventListener(userListener);
     }
 
     @Override
@@ -180,6 +235,7 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
         super.onStart();
         updateLocation();
     }
+
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -197,12 +253,7 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
 
         mMap.setMyLocationEnabled(true);
 
-        /* Add a marker in Dal and move the camera
-        This code was for learning purposes only.
-        LatLng dal = new LatLng(44.6366, -63.5917);
-        mMap.addMarker(new MarkerOptions().position(dal).title("Dalhousie!"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(dal));
-        */
+
         mMap.setOnMyLocationChangeListener(new GoogleMap.OnMyLocationChangeListener() {
             @Override
             public void onMyLocationChange(Location location) {
@@ -278,7 +329,7 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
                         String origin = originAddress.getAddressLine(0) + "" + originAddress.getPostalCode();
                         sendRequest(origin, destination);
                     } else {
-                        Toast.makeText(this, "We couldn't find your place. Please try again.", Toast.LENGTH_LONG);
+                        Toast.makeText(this, R.string.mapsactivity_place_not_found, Toast.LENGTH_LONG);
                     }
                 }
         }
@@ -307,10 +358,10 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
                         LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
                         String destination = address.getAddressLine(0) + "" + address.getPostalCode();
                         String origin = originAddress.getAddressLine(0) + "" + originAddress.getPostalCode();
-                        Log.d("PErform search:", origin + " " + destination);
+                        Log.d("Perform search:", origin + " " + destination);
                         sendRequest(origin, destination);
                     } else {
-                        Toast.makeText(this, "We couldn't find your place. Please try again.", Toast.LENGTH_LONG);
+                        Toast.makeText(this, R.string.mapsactivity_place_not_found, Toast.LENGTH_LONG);
                     }
                 }
             }
@@ -318,8 +369,10 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
     }
     @Override
     public void onDirectionFinderStart() {
-        progressDialog = ProgressDialog.show(this, "Please wait.",
-                "Navigating...", true);
+
+        progressDialog = ProgressDialog.show(this, getString(R.string.main_navigateDialog_title),
+                getString(R.string.main_navigate_message), true);
+        progressDialog.setCancelable(true);
 
         if (originMarkers != null) {
             for (Marker marker : originMarkers) {
@@ -379,19 +432,6 @@ public class MainActivity extends BaseActivity implements OnMapReadyCallback, Go
         }
     }
 
-
-    //Sets the location on map to the one described in the global mCurrentLocation
-  /*Commented out this method as GoogleMaps provides a UI element which does the same thing
-    public void FIND(View view) {
-        if (mCurrentLocation == null) {
-            Display("Current Location NULL");
-            return;
-        }
-        LatLng HERE = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
-        mMap.addMarker(new MarkerOptions().position(HERE).title("I AM HERE"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(HERE));
-    }
-    *****************************************************************************/
 
     /*
     * Update location will use the location manager to get the most recent GPS coordinates set in the device/emulator
